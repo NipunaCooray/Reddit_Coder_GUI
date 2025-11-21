@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reddit Injury Post Annotation Tool</title>
+  <!-- Fonts & minimal reset -->
+  <style>
+    :root {
+      --ink: #0f172a;
+      --muted: #6b7280;
+      --bg: #f7fafc;
+      --card: #ffffff;
+      --line: #e5e7eb;
+      --brand: #0ea5e9;
+      --brand-ink: #0369a1;
+      --danger: #ef4444;
+      --ok: #10b981;
+      --warn: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial;
+      color: var(--ink);
+      background: var(--bg);
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: linear-gradient(#fff, #fff0);
+      border-bottom: 1px solid var(--line);
+      padding: 12px 16px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    header h1 {
+      font-size: 18px;
+      margin: 0 8px 0 0;
+      font-weight: 700;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 16px auto;
+      padding: 0 16px 40px;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: 0 1px 0 rgba(0, 0, 0, .02);
+      overflow: hidden;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 16px;
+    }
+
+    .post {
+      padding: 16px;
+      border-right: 1px solid var(--line);
+    }
+
+    .post h2 {
+      font-size: 18px;
+      margin: .2rem 0 .5rem;
+    }
+
+    .meta {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .post .body {
+      white-space: pre-wrap;
+      background: #fafafa;
+      border: 1px dashed var(--line);
+      border-radius: 10px;
+      padding: 10px;
+      margin-top: 10px;
+      max-height: 320px;
+      overflow: auto;
+    }
+
+    .form {
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+    }
+
+    label {
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    select,
+    input[type="text"],
+    textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      font-size: 14px;
+      background: #fff;
+    }
+
+    textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: #fff;
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .btn:hover {
+      border-color: var(--brand);
+    }
+
+    .btn.primary {
+      background: var(--brand);
+      color: #fff;
+      border-color: var(--brand);
+    }
+
+    .btn.warn {
+      background: #fff7ed;
+      border-color: #fed7aa;
+    }
+
+    .btn.ghost {
+      background: transparent;
+    }
+
+    .kbd {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      padding: .1rem .35rem;
+      border: 1px solid var(--line);
+      border-bottom-width: 2px;
+      border-radius: 6px;
+      background: #fff;
+    }
+
+    .grid2 {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid3 {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .progress {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .bar {
+      flex: 1;
+      height: 10px;
+      background: #eef2f7;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .bar>span {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, var(--brand), #22c55e);
+      width: 0%;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #fff;
+      font-size: 12px;
+    }
+
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      border-top: 1px solid var(--line);
+      background: #fff;
+      position: sticky;
+      bottom: 0;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+</head>
+
+<body>
+  <header>
+    <h1>Reddit Injury Post Annotation</h1>
+    <span class="pill">Dataset: <span id="dsName">None</span></span>
+    <div class="progress" style="min-width:260px;">
+      <div class="bar"><span id="barFill"></span></div>
+      <span id="barPct" class="muted" style="min-width:48px; text-align:right;">0%</span>
+    </div>
+    <div class="hint">Keyboard: <span class="kbd">S</span> Save, <span class="kbd">N</span> Next, <span
+        class="kbd">P</span> Prev, <span class="kbd">0/1</span> Injury?, <span class="kbd">E</span> ER?, <span
+        class="kbd">U</span> Uncertain</div>
+  </header>
+
+  <div class="container">
+    <div class="toolbar">
+      <div>
+        <label for="csvInput">Load CSV</label>
+        <input id="csvInput" type="file" accept=".csv" />
+      </div>
+      <div>
+        <label for="coderId">Coder ID</label>
+        <select id="coderId">
+          <option value="">— select coder —</option>
+          <option>SP</option>
+          <option>NC</option>
+        </select>
+      </div>
+      <div>
+        <label for="filterStatus">Filter</label>
+        <select id="filterStatus">
+          <option value="all">All rows</option>
+          <option value="todo">Unlabeled only</option>
+          <option value="done">Labeled only</option>
+          <option value="uncertain">Marked uncertain</option>
+        </select>
+      </div>
+      <button id="btnExport" class="btn">Export CSV</button>
+      <button id="btnExportDone" class="btn">Export labeled only</button>
+      <span class="hint">Autosaves to your browser. You can reload the same CSV to resume.</span>
+    </div>
+
+    <div class="card row" id="panel" style="display:none;">
+      <section class="post">
+        <div class="meta">
+          <span id="mIdx">#1</span>
+          <span id="mSub" class="pill"></span>
+          <a id="mLink" href="#" target="_blank" rel="noopener noreferrer" class="pill">Permalink ↗</a>
+          <span id="mDate" class="pill"></span>
+        </div>
+        <h2 id="mTitle">Title</h2>
+        <div id="mBody" class="body"></div>
+      </section>
+      <section class="form">
+        <div class="grid3">
+          <div>
+            <label>is_injury_event</label>
+            <select id="fInjury">
+              <option value="">—</option>
+              <option value="true">true</option>
+              <option value="false">false</option>
+            </select>
+          </div>
+          <div>
+            <label>injury__er_or_hospital</label>
+            <select id="fER">
+              <option value="">—</option>
+              <option value="true">true</option>
+              <option value="false">false</option>
+            </select>
+          </div>
+          <div>
+            <label>age_group</label>
+            <select id="fAge">
+              <option value="">—</option>
+              <option>newborn</option>
+              <option>infant</option>
+              <option>toddler</option>
+              <option>preschool</option>
+              <option>child_unspecified</option>
+              <option>unknown</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div>
+            <label>mechanism_of_injury</label>
+            <select id="fMech">
+              <option value="">—</option>
+              <option>road_transport</option>
+              <option>fall</option>
+              <option>drowning</option>
+              <option>burn</option>
+              <option>scald</option>
+              <option>poisoning</option>
+              <option>choking_or_suffocation</option>
+              <option>foreign_body_ingestion</option>
+              <option>cut_pierce</option>
+              <option>struck_by_object</option>
+              <option>animal_related</option>
+              <option>other</option>
+              <option>unknown</option>
+              <option>not_applicable</option>
+            </select>
+          </div>
+          <div>
+            <label>nature_of_injury</label>
+            <select id="fNature">
+              <option value="">—</option>
+              <option>fracture</option>
+              <option>laceration</option>
+              <option>contusion</option>
+              <option>burn</option>
+              <option>poisoning</option>
+              <option>asphyxiation</option>
+              <option>internal_injury</option>
+              <option>dental_injury</option>
+              <option>multiple</option>
+              <option>other</option>
+              <option>unknown</option>
+              <option>not_applicable</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label>body_region</label>
+          <select id="fBody">
+            <option value="">—</option>
+            <option>head_face</option>
+            <option>neck</option>
+            <option>torso</option>
+            <option>arm_hand</option>
+            <option>leg_foot</option>
+            <option>multiple</option>
+            <option>unknown</option>
+            <option>not_applicable</option>
+          </select>
+        </div>
+
+        <div>
+          <label>rationale_short <span class="muted">(≤280 chars; paraphrase only)</span></label>
+          <textarea id="fRationale" maxlength="280" placeholder="Brief rationale…"></textarea>
+          <div class="muted" id="charCount">0 / 280</div>
+        </div>
+
+        <div class="controls">
+          <button id="btnPrev" class="btn">← Prev (P)</button>
+          <button id="btnSave" class="btn primary">Save (S)</button>
+          <button id="btnNext" class="btn">Next (N) →</button>
+          <button id="btnUncertain" class="btn warn">Mark Uncertain (U)</button>
+          <button id="btnClear" class="btn ghost">Clear fields</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="card footer">
+      <div>
+        <span class="muted">Row:</span> <strong id="rowPos">0 / 0</strong>
+        <span class="muted" style="margin-left:12px;">Labeled:</span> <strong id="rowDone">0</strong>
+        <span class="muted" style="margin-left:12px;">Uncertain:</span> <strong id="rowUnc">0</strong>
+      </div>
+      <div class="muted">Tip: set your Coder ID first (SP or NC). Your work autosaves per-file.</div>
+    </div>
+  </div>
+
+  <script>
+    // ----- Configuration (allowed values kept in sync with classifier descriptions) -----
+    const REQUIRED_FIELDS = [
+      'is_injury_event', 'mechanism_of_injury', 'nature_of_injury', 'body_region', 'er_or_hospital_mentioned', 'age_group', 'rationale_short', 'coder_id'
+    ];
+
+    // Local-storage keys are namespaced by a simple hash of filename
+    function simpleHash(str) { let h = 0; for (let i = 0; i < str.length; i++) { h = (h << 5) - h + str.charCodeAt(i); h |= 0; } return 'ds_' + h; }
+
+    // State
+    let rows = [];           // raw CSV as array of objects
+    let order = [];          // index mapping after filters
+    let cursor = 0;          // position in 'order'
+    let dsKey = null;        // localStorage key for autosave
+    let dsName = 'None';
+
+    // Elements
+    const $ = s => document.querySelector(s);
+    const csvInput = $('#csvInput');
+    const coderId = $('#coderId');
+    const filterStatus = $('#filterStatus');
+    const panel = $('#panel');
+
+    // Form controls
+    const f = {
+      injury: $('#fInjury'),
+      er: $('#fER'),
+      age: $('#fAge'),
+      mech: $('#fMech'),
+      nature: $('#fNature'),
+      body: $('#fBody'),
+      rationale: $('#fRationale')
+    };
+
+    // Meta display
+    const m = {
+      idx: $('#mIdx'), title: $('#mTitle'), body: $('#mBody'), sub: $('#mSub'), link: $('#mLink'), date: $('#mDate'),
+      pos: $('#rowPos'), done: $('#rowDone'), unc: $('#rowUnc'),
+      bar: $('#barFill'), pct: $('#barPct'), ds: $('#dsName'),
+      char: $('#charCount')
+    };
+
+    // Buttons
+    const btnPrev = $('#btnPrev');
+    const btnNext = $('#btnNext');
+    const btnSave = $('#btnSave');
+    const btnUncertain = $('#btnUncertain');
+    const btnClear = $('#btnClear');
+    const btnExport = $('#btnExport');
+    const btnExportDone = $('#btnExportDone');
+
+    // Helpers
+    function coalesce(x, alt = '') { return (x === undefined || x === null) ? alt : x; }
+    function isLabeled(r) {
+      return (
+        ['is_injury_event', 'er_or_hospital_mentioned'].every(k => String(r[k]).toLowerCase() === 'true' || String(r[k]).toLowerCase() === 'false') &&
+        ['mechanism_of_injury', 'nature_of_injury', 'body_region', 'age_group'].every(k => (r[k] || '').trim() !== '') &&
+        (r['rationale_short'] || '').trim() !== '' &&
+        (r['coder_id'] || '').trim() !== ''
+      );
+    }
+    function updateProgress() {
+      const done = rows.filter(isLabeled).length;
+      const total = rows.length;
+      m.done.textContent = done;
+      m.pos.textContent = `${Math.min(order.length ? (cursor + 1) : 0, order.length)} / ${order.length}`;
+      const unc = rows.filter(r => String(r['__uncertain']) === 'true').length;
+      m.unc.textContent = unc;
+      const pct = total ? Math.round((done / total) * 100) : 0;
+      m.bar.style.width = pct + '%';
+      m.pct.textContent = pct + '%';
+    }
+
+    function applyFilter() {
+      const mode = filterStatus.value;
+      order = rows.map((_, i) => i).filter(i => {
+        const r = rows[i];
+        if (mode === 'todo') return !isLabeled(r);
+        if (mode === 'done') return isLabeled(r);
+        if (mode === 'uncertain') return String(r['__uncertain']) === 'true';
+        return true; // all
+      });
+      if (cursor >= order.length) cursor = Math.max(0, order.length - 1);
+      render();
+      updateProgress();
+    }
+
+    function render() {
+      if (order.length === 0) { panel.style.display = 'none'; return; }
+      panel.style.display = 'grid';
+      const idx = order[cursor];
+      const r = rows[idx];
+
+      // Meta
+      m.idx.textContent = `#${idx + 1}`;
+      m.ds.textContent = dsName;
+      m.title.textContent = coalesce(r.title, '(no title)');
+      m.body.textContent = coalesce(r.selftext, '');
+      const created = Number(r.created_utc) || null;
+      m.date.textContent = created ? new Date(created * 1000).toISOString().split('T')[0] : '';
+      m.sub.textContent = `r/${coalesce(r.subreddit, '?')}`;
+      m.link.href = coalesce(r.permalink, '#');
+
+      // Form values from row
+      f.injury.value = normalizeBool(r.is_injury_event);
+      f.er.value = normalizeBool(r.er_or_hospital_mentioned);
+      f.age.value = coalesce(r.age_group, '');
+      f.mech.value = coalesce(r.mechanism_of_injury, '');
+      f.nature.value = coalesce(r.nature_of_injury, '');
+      f.body.value = coalesce(r.body_region, '');
+      f.rationale.value = coalesce(r.rationale_short, '');
+      m.char.textContent = `${f.rationale.value.length} / 280`;
+    }
+
+    function normalizeBool(v) {
+      if (v === true || String(v).toLowerCase() === 'true') return 'true';
+      if (v === false || String(v).toLowerCase() === 'false') return 'false';
+      return '';
+    }
+
+    function collectForm() {
+      const idx = order[cursor];
+      const out = {
+        is_injury_event: f.injury.value,
+        er_or_hospital_mentioned: f.er.value,
+        age_group: f.age.value,
+        mechanism_of_injury: f.mech.value,
+        nature_of_injury: f.nature.value,
+        body_region: f.body.value,
+        rationale_short: f.rationale.value.trim(),
+        coder_id: coderId.value.trim(),
+      };
+      // Force empty strings for blanks for stable CSV
+      for (const k of Object.keys(out)) if (out[k] === null || out[k] === undefined) out[k] = '';
+      rows[idx] = { ...rows[idx], ...out };
+    }
+
+    function saveAndNext() {
+      collectForm();
+      persist();
+      // Move to next unlabeled row by default
+      const start = cursor;
+      let moved = false;
+      for (let step = 1; step <= order.length; step++) {
+        const next = (start + step) % order.length;
+        if (!isLabeled(rows[order[next]])) { cursor = next; moved = true; break; }
+      }
+      if (!moved) cursor = (cursor + 1) % order.length;
+      render();
+      updateProgress();
+    }
+
+    function persist() {
+      if (!dsKey) return;
+      const payload = { rows, coder: coderId.value, ts: Date.now() };
+      localStorage.setItem(dsKey, JSON.stringify(payload));
+    }
+
+    function recoverIfAny(name) {
+      const key = simpleHash(name);
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      try { return JSON.parse(raw); } catch { return null; }
+    }
+
+    function updateCounts() { updateProgress(); }
+
+    // --- EVENTS ---
+    csvInput.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      dsName = file.name; m.ds.textContent = dsName; dsKey = simpleHash(file.name);
+      const recovered = recoverIfAny(file.name);
+      Papa.parse(file, {
+        header: true, skipEmptyLines: true, complete: (res) => {
+          rows = res.data.map(obj => ({ ...obj }));
+          // Merge recovered annotations if matching length or by post_id
+          if (recovered?.rows?.length) {
+            const byId = new Map(recovered.rows.filter(r => r.post_id).map(r => [r.post_id, r]));
+            rows = rows.map(r => {
+              const match = (r.post_id && byId.get(r.post_id)) || recovered.rows[rows.indexOf(r)];
+              return { ...r, ...(match || {}) };
+            });
+            if (recovered.coder) coderId.value = recovered.coder;
+          }
+          order = rows.map((_, i) => i);
+          cursor = 0;
+          applyFilter();
+          panel.style.display = order.length ? 'grid' : 'none';
+        }
+      });
+    });
+
+    coderId.addEventListener('change', persist);
+    filterStatus.addEventListener('change', applyFilter);
+
+    btnPrev.addEventListener('click', () => { if (order.length) { cursor = (cursor - 1 + order.length) % order.length; render(); updateCounts(); } });
+    btnNext.addEventListener('click', () => { if (order.length) { cursor = (cursor + 1) % order.length; render(); updateCounts(); } });
+    btnClear.addEventListener('click', () => {
+      f.injury.value = '';
+      f.er.value = '';
+      f.age.value = '';
+      f.mech.value = '';
+      f.nature.value = '';
+      f.body.value = '';
+      f.rationale.value = '';
+      m.char.textContent = '0 / 280';
+    });
+
+    btnSave.addEventListener('click', () => { collectForm(); persist(); updateCounts(); });
+    btnUncertain.addEventListener('click', () => { collectForm(); const idx = order[cursor]; rows[idx]['__uncertain'] = 'true'; persist(); updateCounts(); });
+
+    btnExport.addEventListener('click', () => exportCSV(false));
+    btnExportDone.addEventListener('click', () => exportCSV(true));
+
+    f.rationale.addEventListener('input', () => { m.char.textContent = `${f.rationale.value.length} / 280`; });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.target.matches('input,textarea,select')) return; // avoid hijacking typing
+      const k = e.key.toLowerCase();
+      if (k === 's') { e.preventDefault(); btnSave.click(); }
+      if (k === 'n') { e.preventDefault(); btnNext.click(); }
+      if (k === 'p') { e.preventDefault(); btnPrev.click(); }
+      if (k === 'u') { e.preventDefault(); btnUncertain.click(); }
+      if (k === '0') { f.injury.value = 'false'; }
+      if (k === '1') { f.injury.value = 'true'; }
+      if (k === 'e') { f.er.value = f.er.value === 'true' ? 'false' : 'true'; }
+    });
+
+    function exportCSV(doneOnly) {
+      if (!rows.length) { alert('No data loaded.'); return; }
+      const out = rows.map(r => ({
+        ...r,
+        is_injury_event: normalizeBool(r.is_injury_event),
+        er_or_hospital_mentioned: normalizeBool(r.er_or_hospital_mentioned),
+      }));
+      const filtered = doneOnly ? out.filter(isLabeled) : out;
+      const csv = Papa.unparse(filtered);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      const stamp = new Date().toISOString().replace(/[:.]/g, '');
+      a.download = (dsName?.replace(/\.csv$/i, '') || 'annotations') + (doneOnly ? '_LABELED_' : '_') + stamp + '.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    // If the user already picked a coder once this session, keep it
+    const lastCoder = localStorage.getItem('lastCoder');
+    if (lastCoder) coderId.value = lastCoder;
+    coderId.addEventListener('change', () => localStorage.setItem('lastCoder', coderId.value));
+  </script>
+</body>
+
+</html>
