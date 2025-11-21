@@ -4,8 +4,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Reddit Injury Post Annotation Tool</title>
-  <!-- Fonts & minimal reset -->
+  <title>Reddit Injury Post Annotation</title>
+  <!-- Minimal styling -->
   <style>
     :root {
       --ink: #0f172a;
@@ -41,6 +41,7 @@
       display: flex;
       gap: 12px;
       align-items: center;
+      flex-wrap: wrap;
     }
 
     header h1 {
@@ -152,6 +153,7 @@
       border-radius: 12px;
       cursor: pointer;
       font-weight: 600;
+      font-size: 14px;
     }
 
     .btn:hover {
@@ -199,6 +201,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      min-width: 240px;
     }
 
     .bar {
@@ -214,6 +217,7 @@
       height: 100%;
       background: linear-gradient(90deg, var(--brand), #22c55e);
       width: 0%;
+      transition: width .2s ease-out;
     }
 
     .pill {
@@ -236,6 +240,7 @@
       background: #fff;
       position: sticky;
       bottom: 0;
+      margin-top: 16px;
     }
 
     .muted {
@@ -261,13 +266,19 @@
   <header>
     <h1>Reddit Injury Post Annotation</h1>
     <span class="pill">Dataset: <span id="dsName">None</span></span>
-    <div class="progress" style="min-width:260px;">
+    <div class="progress">
       <div class="bar"><span id="barFill"></span></div>
       <span id="barPct" class="muted" style="min-width:48px; text-align:right;">0%</span>
     </div>
-    <div class="hint">Keyboard: <span class="kbd">S</span> Save, <span class="kbd">N</span> Next, <span
-        class="kbd">P</span> Prev, <span class="kbd">0/1</span> Injury?, <span class="kbd">E</span> ER?, <span
-        class="kbd">U</span> Uncertain</div>
+    <div class="hint">
+      Keyboard:
+      <span class="kbd">S</span> Save,
+      <span class="kbd">N</span> Next,
+      <span class="kbd">P</span> Prev,
+      <span class="kbd">0/1</span> Injury?,
+      <span class="kbd">E</span> ER?,
+      <span class="kbd">U</span> Uncertain
+    </div>
   </header>
 
   <div class="container">
@@ -295,7 +306,7 @@
       </div>
       <button id="btnExport" class="btn">Export CSV</button>
       <button id="btnExportDone" class="btn">Export labeled only</button>
-      <span class="hint">Autosaves to your browser. You can reload the same CSV to resume.</span>
+      <span class="hint">Autosaves to your browser. Reload the same CSV to resume.</span>
     </div>
 
     <div class="card row" id="panel" style="display:none;">
@@ -309,6 +320,7 @@
         <h2 id="mTitle">Title</h2>
         <div id="mBody" class="body"></div>
       </section>
+
       <section class="form">
         <div class="grid3">
           <div>
@@ -320,7 +332,7 @@
             </select>
           </div>
           <div>
-            <label>injury__er_or_hospital</label>
+            <label>er_or_hospital_mentioned</label>
             <select id="fER">
               <option value="">—</option>
               <option value="true">true</option>
@@ -424,19 +436,33 @@
   </div>
 
   <script>
-    // ----- Configuration (allowed values kept in sync with classifier descriptions) -----
+    // ----- Configuration -----
     const REQUIRED_FIELDS = [
-      'is_injury_event', 'mechanism_of_injury', 'nature_of_injury', 'body_region', 'er_or_hospital_mentioned', 'age_group', 'rationale_short', 'coder_id'
+      'is_injury_event',
+      'mechanism_of_injury',
+      'nature_of_injury',
+      'body_region',
+      'er_or_hospital_mentioned',
+      'age_group',
+      'rationale_short',
+      'coder_id'
     ];
 
-    // Local-storage keys are namespaced by a simple hash of filename
-    function simpleHash(str) { let h = 0; for (let i = 0; i < str.length; i++) { h = (h << 5) - h + str.charCodeAt(i); h |= 0; } return 'ds_' + h; }
+    // Simple hash for localStorage key
+    function simpleHash(str) {
+      let h = 0;
+      for (let i = 0; i < str.length; i++) {
+        h = (h << 5) - h + str.charCodeAt(i);
+        h |= 0;
+      }
+      return 'ds_' + h;
+    }
 
     // State
-    let rows = [];           // raw CSV as array of objects
-    let order = [];          // index mapping after filters
-    let cursor = 0;          // position in 'order'
-    let dsKey = null;        // localStorage key for autosave
+    let rows = [];
+    let order = [];
+    let cursor = 0;
+    let dsKey = null;
     let dsName = 'None';
 
     // Elements
@@ -446,7 +472,6 @@
     const filterStatus = $('#filterStatus');
     const panel = $('#panel');
 
-    // Form controls
     const f = {
       injury: $('#fInjury'),
       er: $('#fER'),
@@ -457,15 +482,22 @@
       rationale: $('#fRationale')
     };
 
-    // Meta display
     const m = {
-      idx: $('#mIdx'), title: $('#mTitle'), body: $('#mBody'), sub: $('#mSub'), link: $('#mLink'), date: $('#mDate'),
-      pos: $('#rowPos'), done: $('#rowDone'), unc: $('#rowUnc'),
-      bar: $('#barFill'), pct: $('#barPct'), ds: $('#dsName'),
+      idx: $('#mIdx'),
+      title: $('#mTitle'),
+      body: $('#mBody'),
+      sub: $('#mSub'),
+      link: $('#mLink'),
+      date: $('#mDate'),
+      pos: $('#rowPos'),
+      done: $('#rowDone'),
+      unc: $('#rowUnc'),
+      bar: $('#barFill'),
+      pct: $('#barPct'),
+      ds: $('#dsName'),
       char: $('#charCount')
     };
 
-    // Buttons
     const btnPrev = $('#btnPrev');
     const btnNext = $('#btnNext');
     const btnSave = $('#btnSave');
@@ -474,16 +506,27 @@
     const btnExport = $('#btnExport');
     const btnExportDone = $('#btnExportDone');
 
-    // Helpers
     function coalesce(x, alt = '') { return (x === undefined || x === null) ? alt : x; }
+
+    function normalizeBool(v) {
+      if (v === true || String(v).toLowerCase() === 'true') return 'true';
+      if (v === false || String(v).toLowerCase() === 'false') return 'false';
+      return '';
+    }
+
     function isLabeled(r) {
       return (
-        ['is_injury_event', 'er_or_hospital_mentioned'].every(k => String(r[k]).toLowerCase() === 'true' || String(r[k]).toLowerCase() === 'false') &&
-        ['mechanism_of_injury', 'nature_of_injury', 'body_region', 'age_group'].every(k => (r[k] || '').trim() !== '') &&
+        ['is_injury_event', 'er_or_hospital_mentioned'].every(
+          k => String(r[k]).toLowerCase() === 'true' || String(r[k]).toLowerCase() === 'false'
+        ) &&
+        ['mechanism_of_injury', 'nature_of_injury', 'body_region', 'age_group'].every(
+          k => (r[k] || '').trim() !== ''
+        ) &&
         (r['rationale_short'] || '').trim() !== '' &&
         (r['coder_id'] || '').trim() !== ''
       );
     }
+
     function updateProgress() {
       const done = rows.filter(isLabeled).length;
       const total = rows.length;
@@ -503,15 +546,40 @@
         if (mode === 'todo') return !isLabeled(r);
         if (mode === 'done') return isLabeled(r);
         if (mode === 'uncertain') return String(r['__uncertain']) === 'true';
-        return true; // all
+        return true;
       });
       if (cursor >= order.length) cursor = Math.max(0, order.length - 1);
       render();
       updateProgress();
     }
 
+    function applyInjuryRules(fromChange) {
+      // If is_injury_event is false, auto-set NA and disable
+      if (f.injury.value === 'false') {
+        if (fromChange) {
+          f.mech.value = 'not_applicable';
+          f.nature.value = 'not_applicable';
+          f.body.value = 'not_applicable';
+          f.er.value = 'false';
+        }
+        f.mech.disabled = true;
+        f.nature.disabled = true;
+        f.body.disabled = true;
+        f.er.disabled = true;
+      } else {
+        // Re-enable when true or blank
+        f.mech.disabled = false;
+        f.nature.disabled = false;
+        f.body.disabled = false;
+        f.er.disabled = false;
+      }
+    }
+
     function render() {
-      if (order.length === 0) { panel.style.display = 'none'; return; }
+      if (order.length === 0) {
+        panel.style.display = 'none';
+        return;
+      }
       panel.style.display = 'grid';
       const idx = order[cursor];
       const r = rows[idx];
@@ -526,7 +594,7 @@
       m.sub.textContent = `r/${coalesce(r.subreddit, '?')}`;
       m.link.href = coalesce(r.permalink, '#');
 
-      // Form values from row
+      // Form values
       f.injury.value = normalizeBool(r.is_injury_event);
       f.er.value = normalizeBool(r.er_or_hospital_mentioned);
       f.age.value = coalesce(r.age_group, '');
@@ -534,13 +602,11 @@
       f.nature.value = coalesce(r.nature_of_injury, '');
       f.body.value = coalesce(r.body_region, '');
       f.rationale.value = coalesce(r.rationale_short, '');
-      m.char.textContent = `${f.rationale.value.length} / 280`;
-    }
 
-    function normalizeBool(v) {
-      if (v === true || String(v).toLowerCase() === 'true') return 'true';
-      if (v === false || String(v).toLowerCase() === 'false') return 'false';
-      return '';
+      m.char.textContent = `${f.rationale.value.length} / 280`;
+
+      // Apply dependency rules based on is_injury_event
+      applyInjuryRules(false);
     }
 
     function collectForm() {
@@ -555,24 +621,10 @@
         rationale_short: f.rationale.value.trim(),
         coder_id: coderId.value.trim(),
       };
-      // Force empty strings for blanks for stable CSV
-      for (const k of Object.keys(out)) if (out[k] === null || out[k] === undefined) out[k] = '';
-      rows[idx] = { ...rows[idx], ...out };
-    }
-
-    function saveAndNext() {
-      collectForm();
-      persist();
-      // Move to next unlabeled row by default
-      const start = cursor;
-      let moved = false;
-      for (let step = 1; step <= order.length; step++) {
-        const next = (start + step) % order.length;
-        if (!isLabeled(rows[order[next]])) { cursor = next; moved = true; break; }
+      for (const k of Object.keys(out)) {
+        if (out[k] === null || out[k] === undefined) out[k] = '';
       }
-      if (!moved) cursor = (cursor + 1) % order.length;
-      render();
-      updateProgress();
+      rows[idx] = { ...rows[idx], ...out };
     }
 
     function persist() {
@@ -588,22 +640,46 @@
       try { return JSON.parse(raw); } catch { return null; }
     }
 
-    function updateCounts() { updateProgress(); }
+    function saveAndNext() {
+      collectForm();
+      persist();
+      const start = cursor;
+      let moved = false;
+      for (let step = 1; step <= order.length; step++) {
+        const next = (start + step) % order.length;
+        if (!isLabeled(rows[order[next]])) {
+          cursor = next;
+          moved = true;
+          break;
+        }
+      }
+      if (!moved) cursor = (cursor + 1) % order.length;
+      render();
+      updateProgress();
+    }
 
-    // --- EVENTS ---
+    // --- Events ---
+
     csvInput.addEventListener('change', (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
-      dsName = file.name; m.ds.textContent = dsName; dsKey = simpleHash(file.name);
+      dsName = file.name;
+      m.ds.textContent = dsName;
+      dsKey = simpleHash(file.name);
       const recovered = recoverIfAny(file.name);
       Papa.parse(file, {
-        header: true, skipEmptyLines: true, complete: (res) => {
+        header: true,
+        skipEmptyLines: true,
+        complete: (res) => {
           rows = res.data.map(obj => ({ ...obj }));
-          // Merge recovered annotations if matching length or by post_id
           if (recovered?.rows?.length) {
-            const byId = new Map(recovered.rows.filter(r => r.post_id).map(r => [r.post_id, r]));
-            rows = rows.map(r => {
-              const match = (r.post_id && byId.get(r.post_id)) || recovered.rows[rows.indexOf(r)];
+            const byId = new Map(
+              recovered.rows
+                .filter(r => r.post_id)
+                .map(r => [r.post_id, r])
+            );
+            rows = rows.map((r, i) => {
+              const match = (r.post_id && byId.get(r.post_id)) || recovered.rows[i];
               return { ...r, ...(match || {}) };
             });
             if (recovered.coder) coderId.value = recovered.coder;
@@ -616,11 +692,27 @@
       });
     });
 
-    coderId.addEventListener('change', persist);
+    coderId.addEventListener('change', () => {
+      localStorage.setItem('lastCoder', coderId.value);
+      persist();
+    });
+
     filterStatus.addEventListener('change', applyFilter);
 
-    btnPrev.addEventListener('click', () => { if (order.length) { cursor = (cursor - 1 + order.length) % order.length; render(); updateCounts(); } });
-    btnNext.addEventListener('click', () => { if (order.length) { cursor = (cursor + 1) % order.length; render(); updateCounts(); } });
+    btnPrev.addEventListener('click', () => {
+      if (!order.length) return;
+      cursor = (cursor - 1 + order.length) % order.length;
+      render();
+      updateProgress();
+    });
+
+    btnNext.addEventListener('click', () => {
+      if (!order.length) return;
+      cursor = (cursor + 1) % order.length;
+      render();
+      updateProgress();
+    });
+
     btnClear.addEventListener('click', () => {
       f.injury.value = '';
       f.er.value = '';
@@ -630,30 +722,58 @@
       f.body.value = '';
       f.rationale.value = '';
       m.char.textContent = '0 / 280';
+      applyInjuryRules(false);
     });
 
-    btnSave.addEventListener('click', () => { collectForm(); persist(); updateCounts(); });
-    btnUncertain.addEventListener('click', () => { collectForm(); const idx = order[cursor]; rows[idx]['__uncertain'] = 'true'; persist(); updateCounts(); });
+    btnSave.addEventListener('click', () => {
+      collectForm();
+      persist();
+      updateProgress();
+    });
+
+    btnUncertain.addEventListener('click', () => {
+      collectForm();
+      const idx = order[cursor];
+      rows[idx]['__uncertain'] = 'true';
+      persist();
+      updateProgress();
+    });
 
     btnExport.addEventListener('click', () => exportCSV(false));
     btnExportDone.addEventListener('click', () => exportCSV(true));
 
-    f.rationale.addEventListener('input', () => { m.char.textContent = `${f.rationale.value.length} / 280`; });
+    f.rationale.addEventListener('input', () => {
+      m.char.textContent = `${f.rationale.value.length} / 280`;
+    });
+
+    // When is_injury_event changes, apply the not_applicable + ER=false logic
+    f.injury.addEventListener('change', () => {
+      applyInjuryRules(true);
+      persist();
+    });
 
     document.addEventListener('keydown', (e) => {
-      if (e.target.matches('input,textarea,select')) return; // avoid hijacking typing
+      if (e.target.matches('input,textarea,select')) return;
       const k = e.key.toLowerCase();
       if (k === 's') { e.preventDefault(); btnSave.click(); }
       if (k === 'n') { e.preventDefault(); btnNext.click(); }
       if (k === 'p') { e.preventDefault(); btnPrev.click(); }
       if (k === 'u') { e.preventDefault(); btnUncertain.click(); }
-      if (k === '0') { f.injury.value = 'false'; }
-      if (k === '1') { f.injury.value = 'true'; }
-      if (k === 'e') { f.er.value = f.er.value === 'true' ? 'false' : 'true'; }
+      if (k === '0') { f.injury.value = 'false'; applyInjuryRules(true); }
+      if (k === '1') { f.injury.value = 'true'; applyInjuryRules(true); }
+      if (k === 'e') {
+        // toggle ER only if not locked by is_injury_event=false
+        if (!f.er.disabled) {
+          f.er.value = (f.er.value === 'true') ? 'false' : 'true';
+        }
+      }
     });
 
     function exportCSV(doneOnly) {
-      if (!rows.length) { alert('No data loaded.'); return; }
+      if (!rows.length) {
+        alert('No data loaded.');
+        return;
+      }
       const out = rows.map(r => ({
         ...r,
         is_injury_event: normalizeBool(r.is_injury_event),
@@ -665,15 +785,16 @@
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       const stamp = new Date().toISOString().replace(/[:.]/g, '');
-      a.download = (dsName?.replace(/\.csv$/i, '') || 'annotations') + (doneOnly ? '_LABELED_' : '_') + stamp + '.csv';
+      a.download = (dsName?.replace(/\.csv$/i, '') || 'annotations') +
+        (doneOnly ? '_LABELED_' : '_') +
+        stamp + '.csv';
       a.click();
       URL.revokeObjectURL(a.href);
     }
 
-    // If the user already picked a coder once this session, keep it
+    // Restore last coder if stored
     const lastCoder = localStorage.getItem('lastCoder');
     if (lastCoder) coderId.value = lastCoder;
-    coderId.addEventListener('change', () => localStorage.setItem('lastCoder', coderId.value));
   </script>
 </body>
 
