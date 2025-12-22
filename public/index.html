@@ -66,6 +66,11 @@
       gap: 12px;
       align-items: flex-end;
       flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .toolbar+.toolbar {
+      margin-top: 0;
       margin-bottom: 16px;
     }
 
@@ -176,7 +181,7 @@
     }
 
     .kbd {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
       font-size: 12px;
       padding: .1rem .35rem;
       border: 1px solid var(--line);
@@ -258,6 +263,12 @@
       white-space: nowrap;
       border: 0;
     }
+
+    .inline-input {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
@@ -282,6 +293,7 @@
   </header>
 
   <div class="container">
+    <!-- Top toolbar: dataset + coder controls -->
     <div class="toolbar">
       <div>
         <label for="csvInput">Load CSV</label>
@@ -306,7 +318,18 @@
       </div>
       <button id="btnExport" class="btn">Export CSV</button>
       <button id="btnExportDone" class="btn">Export labeled only</button>
-      <span class="hint">Autosaves to your browser. Reload the same CSV to resume.</span>
+      <span class="hint">Autosaves in your browser. Reload the same CSV to resume.</span>
+    </div>
+
+    <!-- Second toolbar row: post_id search -->
+    <div class="toolbar">
+      <div>
+        <label for="searchPostId">Jump to post_id</label>
+        <div class="inline-input">
+          <input id="searchPostId" type="text" placeholder="e.g. t3_abc123" />
+          <button id="btnSearchPostId" class="btn">Go</button>
+        </div>
+      </div>
     </div>
 
     <div class="card row" id="panel" style="display:none;">
@@ -314,6 +337,7 @@
         <div class="meta">
           <span id="mIdx">#1</span>
           <span id="mSub" class="pill"></span>
+          <span id="mPostId" class="pill"></span>
           <a id="mLink" href="#" target="_blank" rel="noopener noreferrer" class="pill">Permalink ↗</a>
           <span id="mDate" class="pill"></span>
         </div>
@@ -470,6 +494,8 @@
     const csvInput = $('#csvInput');
     const coderId = $('#coderId');
     const filterStatus = $('#filterStatus');
+    const searchPostId = $('#searchPostId');
+    const btnSearchPostId = $('#btnSearchPostId');
     const panel = $('#panel');
 
     const f = {
@@ -487,6 +513,7 @@
       title: $('#mTitle'),
       body: $('#mBody'),
       sub: $('#mSub'),
+      postId: $('#mPostId'),
       link: $('#mLink'),
       date: $('#mDate'),
       pos: $('#rowPos'),
@@ -594,6 +621,16 @@
       m.sub.textContent = `r/${coalesce(r.subreddit, '?')}`;
       m.link.href = coalesce(r.permalink, '#');
 
+      // post_id pill
+      const pid = coalesce(r.post_id, '');
+      if (pid && pid.trim() !== '') {
+        m.postId.textContent = `id: ${pid}`;
+        m.postId.style.display = 'inline-flex';
+      } else {
+        m.postId.textContent = '';
+        m.postId.style.display = 'none';
+      }
+
       // Form values
       f.injury.value = normalizeBool(r.is_injury_event);
       f.er.value = normalizeBool(r.er_or_hospital_mentioned);
@@ -654,6 +691,36 @@
         }
       }
       if (!moved) cursor = (cursor + 1) % order.length;
+      render();
+      updateProgress();
+    }
+
+    function jumpToPostId(pidRaw) {
+      if (!pidRaw) return;
+      const target = pidRaw.trim();
+      if (!target) return;
+      // Find index in full rows
+      let targetIndex = -1;
+      for (let i = 0; i < rows.length; i++) {
+        const val = String(rows[i].post_id || '').trim();
+        if (val === target) {
+          targetIndex = i;
+          break;
+        }
+      }
+      if (targetIndex === -1) {
+        alert('post_id not found in current dataset');
+        return;
+      }
+      // Ensure filter includes it: switch to All
+      filterStatus.value = 'all';
+      applyFilter();
+      const posInOrder = order.indexOf(targetIndex);
+      if (posInOrder === -1) {
+        alert('post_id found but not visible under current filter');
+        return;
+      }
+      cursor = posInOrder;
       render();
       updateProgress();
     }
@@ -750,6 +817,17 @@
     f.injury.addEventListener('change', () => {
       applyInjuryRules(true);
       persist();
+    });
+
+    // Search by post_id
+    btnSearchPostId.addEventListener('click', () => {
+      jumpToPostId(searchPostId.value);
+    });
+    searchPostId.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        jumpToPostId(searchPostId.value);
+      }
     });
 
     document.addEventListener('keydown', (e) => {
