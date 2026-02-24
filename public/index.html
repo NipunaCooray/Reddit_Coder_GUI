@@ -373,6 +373,7 @@
               <option>preschool</option>
               <option>child_unspecified</option>
               <option>unknown</option>
+              <option>not_applicable</option>
             </select>
           </div>
         </div>
@@ -584,17 +585,20 @@
       // If is_injury_event is false, auto-set NA and disable
       if (f.injury.value === 'false') {
         if (fromChange) {
+          f.age.value = 'not_applicable';
           f.mech.value = 'not_applicable';
           f.nature.value = 'not_applicable';
           f.body.value = 'not_applicable';
           f.er.value = 'false';
         }
+        f.age.disabled = true;
         f.mech.disabled = true;
         f.nature.disabled = true;
         f.body.disabled = true;
         f.er.disabled = true;
       } else {
         // Re-enable when true or blank
+        f.age.disabled = false;
         f.mech.disabled = false;
         f.nature.disabled = false;
         f.body.disabled = false;
@@ -639,6 +643,11 @@
       f.nature.value = coalesce(r.nature_of_injury, '');
       f.body.value = coalesce(r.body_region, '');
       f.rationale.value = coalesce(r.rationale_short, '');
+
+      // Backfill legacy empty age_group when non-injury rows are loaded.
+      if (f.injury.value === 'false' && !f.age.value) {
+        f.age.value = 'not_applicable';
+      }
 
       m.char.textContent = `${f.rationale.value.length} / 280`;
 
